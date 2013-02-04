@@ -36,7 +36,6 @@
 
     <!--  Name of author which is used for signing. Must match the developer name of your development certificate. -->
     <author>LXP</author>
-    <authorId>gYAAgOi9SyqpQ9QAnjE1nsKNdO8</authorId>
     
     <!--  Unique author ID assigned by signing authority. Required if using debug tokens. -->
     <!-- <authorId>ABC1234YjsnUk235h</authorId> -->
@@ -47,33 +46,33 @@
     </initialWindow>
     
     <!--  The category where the application appears. Either core.games or core.media. -->
-    <category>core.media</category>
+    <category>core.games</category>
     <asset path="icon.png">icon.png</asset>
-    <configuration id="com.qnx.qcc.configuration.exe.debug.2062341932" name="Device-Debug">
+    <configuration id="com.qnx.qcc.configuration.exe.debug.1118243397" name="Device-Debug">
        <platformArchitecture>armle-v7</platformArchitecture>
        <asset path="Device-Debug/VeryDaaper" entry="true" type="Qnx/Elf">VeryDaaper</asset>
     </configuration>
-    <configuration id="com.qnx.qcc.configuration.exe.release.947819005" name="Device-Release">
+    <configuration id="com.qnx.qcc.configuration.exe.release.1916293522" name="Device-Release">
        <platformArchitecture>armle-v7</platformArchitecture>
        <asset path="Device-Release/VeryDaaper" entry="true" type="Qnx/Elf">VeryDaaper</asset>
     </configuration>
-    <configuration id="com.qnx.qcc.configuration.exe.profile.389593641" name="Device-Profile">
+    <configuration id="com.qnx.qcc.configuration.exe.profile.2006881654" name="Device-Profile">
        <platformArchitecture>armle-v7</platformArchitecture>
        <asset path="Device-Profile/VeryDaaper" entry="true" type="Qnx/Elf">VeryDaaper</asset>
     </configuration>
-    <configuration id="com.qnx.qcc.configuration.exe.profile.coverage.295753146" name="Device-Coverage">
+    <configuration id="com.qnx.qcc.configuration.exe.profile.coverage.1319427912" name="Device-Coverage">
        <platformArchitecture>armle-v7</platformArchitecture>
        <asset path="Device-Coverage/VeryDaaper" entry="true" type="Qnx/Elf">VeryDaaper</asset>
     </configuration>
-    <configuration id="com.qnx.qcc.configuration.exe.debug.1882883695" name="Simulator-Debug">
+    <configuration id="com.qnx.qcc.configuration.exe.debug.517246607" name="Simulator-Debug">
        <platformArchitecture>x86</platformArchitecture>
        <asset path="Simulator-Debug/VeryDaaper" entry="true" type="Qnx/Elf">VeryDaaper</asset>
     </configuration>
-    <configuration id="com.qnx.qcc.configuration.exe.profile.1213904160" name="Simulator-Profile">
+    <configuration id="com.qnx.qcc.configuration.exe.profile.1404839766" name="Simulator-Profile">
        <platformArchitecture>x86</platformArchitecture>
        <asset path="Simulator-Profile/VeryDaaper" entry="true" type="Qnx/Elf">VeryDaaper</asset>
     </configuration>
-    <configuration id="com.qnx.qcc.configuration.exe.profile.coverage.1198997532" name="Simulator-Coverage">
+    <configuration id="com.qnx.qcc.configuration.exe.profile.coverage.254631726" name="Simulator-Coverage">
        <platformArchitecture>x86</platformArchitecture>
        <asset path="Simulator-Coverage/VeryDaaper" entry="true" type="Qnx/Elf">VeryDaaper</asset>
     </configuration>
@@ -88,21 +87,19 @@
 
     <!-- Request permission to execute native code.  Required for native applications. -->
     <action system="true">run_native</action>
-    <action>access_internet</action>
-    <action>play_audio</action>
     
     <!--  The permissions requested by your application. -->
     <!--  <action>access_shared</action> -->
     <!--  <action>record_audio</action> -->
     <!--  <action>read_geolocation</action> -->
     <!--  <action>use_camera</action> -->
-    <!--  <action>access_internet</action> -->
-    <!--  <action>play_audio</action> -->
-    <!--  <action>post_notification</action> -->
+    <action>access_internet</action>
+    <action>play_audio</action>
+    <action>post_notification</action>
     <!--  <action>set_audio_volume</action> -->
     <!--  <action>read_device_identifying_information</action> -->
 
     <!-- Ensure that shared libraries in the package are found at run-time. -->
     <env var="LD_LIBRARY_PATH" value="app/native/lib"/>
-        
+    
 </qnx>

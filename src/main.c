@@ -40,6 +40,10 @@
 
 #define DEFAULT_DEBUG_CHANNEL "main"
 
+#if ! defined(DEFAULT_AUDIO_OUT)
+    #define DEFAULT_AUDIO_OUT "audio:default"
+#endif
+
 static screen_context_t screen_cxt;
 
 static font_t* font;
@@ -137,8 +141,9 @@ int main(int argc, char *argv[]) {
 
     conn = mmr_connect(NULL);
 	ctxt = mmr_context_create(conn, "context", 0, mode);
+	int audio_oid = mmr_output_attach(ctxt, DEFAULT_AUDIO_OUT, "audio");
 
-	debugMsg("Sending initial callback");
+	debugMsg("Sending initial callback", -1);
 	sendInitialCallback();
 
     while (!exit_application) {

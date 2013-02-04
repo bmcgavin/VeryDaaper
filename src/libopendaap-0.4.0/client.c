@@ -49,10 +49,6 @@
 
 #define DEFAULT_DEBUG_CHANNEL "client"
 
-#if ! defined(DEFAULT_AUDIO_OUT)
-    #define DEFAULT_AUDIO_OUT "audio:default"
-#endif
-
 static DAAP_SClientHost *DAAP_ClientHost_Create(DAAP_SClient *parent, char *host,
                                                 char *sharename);
 static int Priv_DAAP_ClientHost_GetDatabaseItems(DAAP_SClientHost *pCHThis,
@@ -1633,9 +1629,8 @@ int DAAP_ClientHost_MMRGetAudioFile(DAAP_SClientHost *pCHThis,
 								      mmr_context_t *ctxt)
 {
 
-	debugMsg("MMRGetAudioFile");
-	int audio_oid = mmr_output_attach(ctxt, DEFAULT_AUDIO_OUT, "audio");
-
+	//debugMsg("MMRGetAudioFile", -1);
+	const mmr_error_info_t* err = NULL;
 	char* url = NULL;
 	url = (char*)calloc(100, sizeof(char));
 	sprintf(url, "http://%s/databases/1/items/%d.mp3?session-id=%d",
@@ -1648,7 +1643,16 @@ int DAAP_ClientHost_MMRGetAudioFile(DAAP_SClientHost *pCHThis,
 	                                           DAAP_STATUS_negotiating,
 	                                           0,
 	                                           pCHThis->parent->pvCallbackStatusContext);
-	mmr_input_attach(ctxt, url, "track");
+	if (mmr_input_attach(ctxt, url, "track") != 0) {
+		err = mmr_error_info(ctxt);
+	    if (pCHThis->parent->pfnCallbackStatus) {
+	        pCHThis->parent->pfnCallbackStatus(pCHThis->parent,
+	                                           DAAP_STATUS_error,
+	                                           0,
+	                                           pCHThis->parent->pvCallbackStatusContext);
+	        return -1;
+	    }
+	}
     if (pCHThis->parent->pfnCallbackStatus)
         pCHThis->parent->pfnCallbackStatus(pCHThis->parent,
                                            DAAP_STATUS_downloading,

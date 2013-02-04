@@ -198,8 +198,12 @@ int getDebugIdx() {
 	return debug_index;
 }
 
-void debugMsg(char* message) {
+void debugMsg(char* message, int pos) {
 	TRACE(message);
+	if (pos >= 0) {
+		debugOut[pos] = message;
+		return;
+	}
 	debugOut[debug_index++] = message;
 }
 

@@ -592,10 +592,15 @@ void daap_host_play_song(enum playsource playsource, daap_host *host, int song_i
     }
 
     daap_host_addref(host);
-    host->selected_artist = (artist*)malloc(sizeof(artist));
-    host->selected_artist->artist = host->songs[songindex].songartist;
-    host->selected_album = (album*)malloc(sizeof(artist));
-    host->selected_album->album = host->songs[songindex].songalbum;
+    if (host->selected_artist == NULL) {
+    	host->selected_artist = host->artists;
+    	while (host->selected_artist->next != NULL) {
+    		host->selected_artist = host->selected_artist->next;
+    	}
+    }
+    if (host->selected_album == NULL) {
+    	host->selected_album = host->selected_artist->albumhead;
+    }
     playing_song.playsource = playsource;
     playing_song.host = host;
     playing_song.song_id = song_id;
@@ -645,7 +650,7 @@ void on_song_row_activated()
  */
 void initial_connect(daap_host *host)
 {
-	debugMsg("initial_connect");
+	debugMsg("initial_connect", -1);
     int ret;
 
 
@@ -669,7 +674,7 @@ void initial_connect(daap_host *host)
 
     //RPJ why is databases an unallocated object in an initial connect?
 	host->databases = NULL;
-    debugMsg("update_databases");
+    debugMsg("update_databases", -1);
     update_databases(host);
 
     if (host->nDatabases > 1)
@@ -687,13 +692,13 @@ void initial_connect(daap_host *host)
 
     //RPJ why is playlists an unallocated object in an initial connect?
     host->playlists = NULL;
-    debugMsg("update_playlists");
+    debugMsg("update_playlists", -1);
     update_playlists(host);
 
     //RPJ why is artists an unallocated object in an initial connect?
     host->songs = NULL;
     host->artists = NULL;
-    debugMsg("update_songs");
+    debugMsg("update_songs", -1);
     update_songs(host);
 
     /* now make sure it tells us when updates have happened */
@@ -839,8 +844,8 @@ static void DAAP_StatusCB( DAAP_SClient *client, DAAP_Status status, int pos,  v
                  * this will cause an EOF to be sent.
                  * FIXME: need to check that all data has been flushed?
                  */
-                close(songpipe[1]);
-                songpipe[1] = -1;
+                //close(songpipe[1]);
+                //songpipe[1] = -1;
             }
             break;
         }
@@ -897,7 +902,7 @@ static void cb_hosts_updated()
     //RPJ
     //initial_connect(first);
     //schedule_lists_draw(1, 0, 0, 0);
-    debugMsg(first->sharename);
+    debugMsg(first->sharename, -1);
 }
 
 /******************* specific callback handlers *********/
@@ -1006,12 +1011,22 @@ void daap_host_set_selected_artist(daap_host *host, artist *artist)
         if (!cur) host->selected_album = NULL;
     }
 
+    char* tmp = calloc(12 + strlen(host->selected_artist->artist) + 1, sizeof(char));
+    sprintf(tmp, "New artist: %s", host->selected_artist->artist);
+    debugMsg(tmp, 7);
+    //free(tmp);
     //schedule_lists_draw(0, 0, 1, 1);
 }
 
 void daap_host_set_selected_album(daap_host *host, album *album)
 {
     host->selected_album = album;
+
+    char* tmp = calloc(11 + strlen(host->selected_album->album) + 1, sizeof(char));
+    sprintf(tmp, "New album: %s", host->selected_album->album);
+    debugMsg(tmp, 8);
+    //free(tmp);
+
     //schedule_lists_draw(0, 0, 0, 1);
 }
 

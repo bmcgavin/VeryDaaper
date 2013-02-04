@@ -94,7 +94,7 @@ static char** debugOut;
 static int debug_index;
 int getDebugIdx();
 char* getRPJDebugMsg(int i);
-void debugMsg(char* message);
+void debugMsg(char* message, int pos);
 void debugInit();
 
 #ifdef __cplusplus

@@ -503,6 +503,9 @@ void bbutil_render_text(font_t* font, const char* msg, float x, float y, float r
 
     const int msg_len = strlen(msg);
 
+    if (msg_len == 0) {
+    	return;
+    }
     vertices = (GLfloat*) malloc(sizeof(GLfloat) * 8 * msg_len);
     texture_coords = (GLfloat*) malloc(sizeof(GLfloat) * 8 * msg_len);
 

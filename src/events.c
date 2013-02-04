@@ -31,7 +31,23 @@ void handleClick(int x, int y) {
 			album* next_album = get_new_album();
 			next_album = daap_host_enum_album(daap_host_get_selected_artist(host),
 					daap_host_get_selected_album(host));
-			if (next_album != daap_host_get_selected_album(host)) {
+			if (next_album == NULL) {
+				//Next artist
+				artist* next_artist = daap_host_get_next_artist(host, daap_host_get_selected_artist(host));
+				if (next_artist == NULL) {
+					//Uh
+					return;
+				}
+				daap_host_set_selected_artist(host,next_artist);
+				daap_host_set_selected_album(host,daap_host_enum_album(next_artist, NULL));
+				//Get first song_id for that artist
+				DAAP_ClientHost_DatabaseItem* next_song = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem));
+				daap_host_enum_artist_album_songs(host, next_song,
+						-1, next_artist,
+						daap_host_get_selected_album(host));
+				stop_type = STOP_NEWSONG;
+				daap_host_play_song(PLAYSOURCE_HOST, host, next_song->id);
+			} else if (next_album != daap_host_get_selected_album(host)) {
 				daap_host_set_selected_album(host,next_album);
 				//Get first song_id for that album
 				DAAP_ClientHost_DatabaseItem* next_song = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem));
@@ -45,8 +61,13 @@ void handleClick(int x, int y) {
 			//Artist
 			//artist* next_artist = get_new_artist();
 			artist* next_artist = daap_host_get_next_artist(host, daap_host_get_selected_artist(host));
+			if (next_artist == NULL) {
+				//Uh...
+				return;
+			}
 			if (next_artist != daap_host_get_selected_artist(host)) {
 				daap_host_set_selected_artist(host,next_artist);
+				daap_host_set_selected_album(host,daap_host_enum_album(next_artist, NULL));
 				//Get first song_id for that artist
 				DAAP_ClientHost_DatabaseItem* next_song = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem));
 				daap_host_enum_artist_album_songs(host, next_song,
