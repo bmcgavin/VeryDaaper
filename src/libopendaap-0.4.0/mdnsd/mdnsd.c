@@ -713,7 +713,7 @@ int mdnsd_out(mdnsd d, struct message *m, unsigned long int *ip, unsigned short 
             {
                 c = 0;
                 /* FIXME SOMETIMES SEGFAULT */
-                if (q->name && q->type) {
+                if (q && q->name && q->type) {
                 	while((c = _c_next(d,c,q->name,q->type)) != 0 &&
                 			c->rr.ttl > (unsigned)d->now.tv_sec + 8)
                 	{

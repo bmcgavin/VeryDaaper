@@ -110,6 +110,7 @@ void daap_audiocb_finished()
     daap_host *prevhost = playing_song.host;
     if (!prevhost) {
     	//????
+    	prevhost = visibleHost;
     	return;
     }
     int previd = playing_song.song_id;
@@ -194,14 +195,20 @@ void daap_audiocb_finished()
                     song = &(prevhost->songs[songindex+1]);
 
                     /* if it's not in the visible list, break */
+                    //UPDATE
                     if (prevhost->selected_artist &&
                             strcasecmp(prevhost->selected_artist->artist,
-                                       song->songartist) != 0)
-                        break;
-                    if (prevhost->selected_album &&
+                                       song->songartist) != 0) {
+                    	daap_host_set_selected_artist(prevhost, daap_host_get_next_artist(prevhost, prevhost->selected_artist));
+                    	daap_host_set_selected_album(prevhost, daap_host_get_next_album(prevhost, prevhost->selected_album));
+                    	//break;
+                    //Don't want to change artist + album AND album
+                    } else if (prevhost->selected_album &&
                             strcasecmp(prevhost->selected_album->album,
-                                       song->songalbum) != 0)
-                        break;
+                                       song->songalbum) != 0) {
+                    	daap_host_set_selected_album(prevhost, daap_host_get_next_album(prevhost, prevhost->selected_album));
+                    	break;
+                    }
                 }
 
                 /* ok, lets play it */
@@ -1109,6 +1116,8 @@ int daap_host_enum_artist_album_songs(daap_host *host,
                                       artist *artist, album *album)
 {
     int i;
+    int min_song_id = -1;
+    int min_track_number = -1;
 
     for (i = prev_id+1; i < host->nSongs; i++)
     {
@@ -1122,6 +1131,12 @@ int daap_host_enum_artist_album_songs(daap_host *host,
                                thissong->songalbum) != 0))
             continue;
 
+
+        if (min_song_id == -1 ||
+        	thissong->songtracknumber < min_track_number) {
+        	min_song_id = i;
+        	min_track_number = thissong->songtracknumber;
+        }
         if (thissong->songtracknumber != 1)
         	continue;
 
@@ -1130,7 +1145,11 @@ int daap_host_enum_artist_album_songs(daap_host *host,
         return i;
 
     }
-    return -1;
+    DAAP_ClientHost_DatabaseItem *thissong = &(host->songs[min_song_id]);
+    if (song)
+    	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
+
+    return min_song_id;
 }
 
 album* get_new_album() {
@@ -1141,6 +1160,19 @@ album* get_new_album() {
 artist* get_new_artist() {
 	artist* new_artist = (artist*)malloc(sizeof(artist));
 	return new_artist;
+}
+
+char* get_current_song_length(daap_host* host) {
+	if (host == NULL) {
+		host = visibleHost;
+	}
+	if (playing_song.song_id && host && host->songs) {
+		int length = host->songs[playing_song.song_id].songtime;
+		char* buf = calloc(100, sizeof(char));
+		itoa(length, buf, 10);
+		return buf;
+	}
+	return "-1";
 }
 
 static DAAP_Status prev_libopendaap_status = DAAP_STATUS_idle;

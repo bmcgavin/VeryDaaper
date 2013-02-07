@@ -202,6 +202,7 @@ void debugMsg(char* message, int pos) {
 	TRACE(message);
 	if (pos >= 0) {
 		memcpy(debugOut[pos], message, strlen(message) + 1);
+		debug_index = pos;
 		return;
 	}
 	debug_index++;
