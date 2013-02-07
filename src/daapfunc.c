@@ -13,11 +13,13 @@
 #include <strings.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "libopendaap-0.4.0/client.h"
 #include "libopendaap-0.4.0/daap.h"
 #include "daapfunc.h"
 #include "libopendaap-0.4.0/debug/debug.h"
+#include "events.h"
 
 #define DEFAULT_DEBUG_CHANNEL "daapfunc"
 
@@ -106,6 +108,10 @@ struct daap_hostTAG
 void daap_audiocb_finished()
 {
     daap_host *prevhost = playing_song.host;
+    if (!prevhost) {
+    	//????
+    	return;
+    }
     int previd = playing_song.song_id;
     enum playsource prevsource = playing_song.playsource;
 
@@ -199,6 +205,7 @@ void daap_audiocb_finished()
                 }
 
                 /* ok, lets play it */
+                mm_stopEventsToIgnore++;
                 daap_host_play_song(PLAYSOURCE_HOST, prevhost, song->id);
             }
             break;
@@ -297,7 +304,7 @@ static int compare_songitems(const void *pva, const void *pvb)
     int ret;
 
     char *artist[2], *album[2], *name[2];
-    int track_i[2], disc_i[2];
+    int track_i[2], disc_i[2], sorting_song_id[2];
 
     /* compare artist */
     artist[0] = a->songartist;
@@ -328,11 +335,14 @@ static int compare_songitems(const void *pva, const void *pvb)
     if (ret != 0) return ret;
 
     /* compare disc */
+    /* FIXME discnumber appears to be bitrate */
+    /*
     disc_i[0] = a->songdiscnumber;
     disc_i[1] = b->songdiscnumber;
     ret = (disc_i[0] < disc_i[1] ? -1 :
             (disc_i[0] > disc_i[1] ? 1 : 0));
     if (ret != 0) return ret;
+    */
 
     /* compare track */
     track_i[0] = a->songtracknumber;
@@ -340,6 +350,13 @@ static int compare_songitems(const void *pva, const void *pvb)
     ret = (track_i[0] < track_i[1] ? -1 :
             (track_i[0] > track_i[1] ? 1 : 0));
     if (ret != 0) return ret;
+
+    //Use the DAAP ID first as it takes filename into account
+	sorting_song_id[0] = a->id;
+	sorting_song_id[1] = b->id;
+	ret = (sorting_song_id[0] < sorting_song_id[1] ? -1 :
+		(sorting_song_id[0] > sorting_song_id[1] ? 1 : 0));
+	if (ret != 0) return ret;
 
     name[0] = a->itemname;
     name[1] = b->itemname;
@@ -544,6 +561,9 @@ void daap_host_addref(daap_host *host)
 static int get_songindex_by_id(daap_host *host, int song_id)
 {
     int i;
+    if (host == NULL) {
+    	host = visibleHost;
+    }
 
     for (i = 0; i < host->nSongs; i++)
     {
@@ -607,6 +627,10 @@ void daap_host_play_song(enum playsource playsource, daap_host *host, int song_i
 
     if (pipe(songpipe) == -1) return;
 
+    char* tmp = calloc(10 + strlen(host->songs[songindex].itemname) + 1, sizeof(char));
+    sprintf(tmp, "New song: %s", host->songs[songindex].itemname);
+    debugMsg(tmp, 9);
+
 #ifdef PLAYBOOK
     if (DAAP_ClientHost_MMRGetAudioFile(host->libopendaap_host,
                                           host->databases[0].id, song_id,
@@ -631,19 +655,43 @@ fail:
     close(songpipe[1]);
 }
 
+int daap_host_enum_songs(daap_host *host)
+{
+    if (host->selected_album) {
+    	if (host->selected_artist) {
+    	    //Get first song
+    		return host->songs->id;
+    	} else {
+    		//Get first artist
+    		daap_host_set_selected_artist(host, daap_host_get_next_artist(host, NULL));
+    		//Get first song
+    		return host->songs->id;
+    	}
+    } else {
+    	//Get first artist
+    	daap_host_set_selected_artist(host, daap_host_get_next_artist(host, NULL));
+    	//get first album
+    	daap_host_set_selected_album(host, daap_host_get_next_album(host, NULL));
+    	//get first song
+    	return host->songs->id;
+    }
+    return -1;
+}
+
+
 /* callbacks */
 void on_song_row_activated()
 {
     daap_host *host = visibleHost;
-    //int id = songlist_get_selected_id();
-    //RPJ
-    int id = 4785;
+    int id = daap_host_enum_songs(host);
+    //int id = 3483;
 
     if (!host) return;
     if (id == -1) return;
 
     daap_host_play_song(PLAYSOURCE_HOST, host, id);
 }
+
 
 /* connects to the new daap host,
  * downloads database, etc
@@ -698,6 +746,8 @@ void initial_connect(daap_host *host)
     //RPJ why is artists an unallocated object in an initial connect?
     host->songs = NULL;
     host->artists = NULL;
+    host->selected_artist = NULL;
+    host->selected_album = NULL;
     debugMsg("update_songs", -1);
     update_songs(host);
 
@@ -820,7 +870,7 @@ static void DAAP_StatusCB( DAAP_SClient *client, DAAP_Status status, int pos,  v
         	{
         		/* start playing the song */
         		//audioplayer_playpipe(songpipe[0]);
-
+        		mm_stopEventsToIgnore++;
 				mmr_play(ctxt);
         	}
             break;
@@ -831,6 +881,7 @@ static void DAAP_StatusCB( DAAP_SClient *client, DAAP_Status status, int pos,  v
                 prev_libopendaap_status == DAAP_STATUS_downloading)
             {
                 stop_type = STOP_ERROR;
+                //mm_stopEventsToIgnore++;
 				mmr_stop(ctxt);
 				mmr_input_detach(ctxt);
             }
@@ -846,6 +897,7 @@ static void DAAP_StatusCB( DAAP_SClient *client, DAAP_Status status, int pos,  v
                  */
                 //close(songpipe[1]);
                 //songpipe[1] = -1;
+
             }
             break;
         }
@@ -890,7 +942,7 @@ static void cb_hosts_updated()
         char *buf;
         int size;
 
-        if (cur->sharename) continue;
+        //if (cur->sharename) continue;
 
         size = DAAP_ClientHost_GetSharename(cur->libopendaap_host, NULL, 0);
 
@@ -948,26 +1000,37 @@ artist *daap_host_get_next_artist(daap_host *host, artist *curr) {
 	artist* prev = host->artists;
 	while (prev != NULL) {
 		if (prev->next == curr) {
-			return prev;
+			break;
 		}
-		prev = prev->next;
+		if (prev->next != NULL) {
+			prev = prev->next;
+		}
 	}
-	return NULL;
+	return prev;
 }
 
 
 album *daap_host_get_next_album(daap_host *host, album *curr) {
-	if (curr->next != NULL) {
+	if (curr && curr->next != NULL) {
 		return curr->next;
+	}
+	if (host->selected_artist && !host->selected_album) {
+		album* prev = host->selected_artist->albumhead;
+		while (prev->next) {
+			prev = prev->next;
+		}
+		return prev;
 	}
 	artist* prev = daap_host_get_next_artist(host, host->selected_artist);
 	while (prev != NULL) {
 		if (prev->next == host->selected_artist) {
-			return prev->albumhead;
+			break;
 		}
-		prev = prev->next;
+		if (prev->next != NULL) {
+			prev = prev->next;
+		}
 	}
-	return NULL;
+	return prev->albumhead;
 }
 
 artist *daap_host_enum_artists(daap_host *host, artist *prev)
@@ -1059,9 +1122,13 @@ int daap_host_enum_artist_album_songs(daap_host *host,
                                thissong->songalbum) != 0))
             continue;
 
+        if (thissong->songtracknumber != 1)
+        	continue;
+
         if (song)
-            memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
+        	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
         return i;
+
     }
     return -1;
 }

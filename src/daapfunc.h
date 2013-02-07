@@ -135,6 +135,7 @@ album* get_new_album();
 artist* get_new_artist();
 
 artist *daap_host_get_next_artist(daap_host *host, artist *curr);
+album *daap_host_get_next_album(daap_host *host, album *curr);
 
 mode_t mode;
 mmr_connection_t *conn;

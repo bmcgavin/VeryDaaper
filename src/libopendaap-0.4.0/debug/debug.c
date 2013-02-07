@@ -201,10 +201,14 @@ int getDebugIdx() {
 void debugMsg(char* message, int pos) {
 	TRACE(message);
 	if (pos >= 0) {
-		debugOut[pos] = message;
+		memcpy(debugOut[pos], message, strlen(message) + 1);
 		return;
 	}
-	debugOut[debug_index++] = message;
+	debug_index++;
+	if (debug_index >= 20) {
+		return;
+	}
+	memcpy(debugOut[debug_index], message, strlen(message) + 1);
 }
 
 char* getRPJDebugMsg(int i) {

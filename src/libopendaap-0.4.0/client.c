@@ -47,6 +47,8 @@
 
 #include "debug/debug.h"
 
+#include "../events.h"
+
 #define DEFAULT_DEBUG_CHANNEL "client"
 
 static DAAP_SClientHost *DAAP_ClientHost_Create(DAAP_SClient *parent, char *host,
@@ -1670,7 +1672,8 @@ int DAAP_ClientHost_MMRGetAudioFile(DAAP_SClientHost *pCHThis,
 
 int DAAP_ClientHost_MMRStop(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt)
 {
-    mmr_stop(ctxt);
+	mm_stopEventsToIgnore++;
+	mmr_stop(ctxt);
     mmr_input_detach(ctxt);
     return 0;
 }

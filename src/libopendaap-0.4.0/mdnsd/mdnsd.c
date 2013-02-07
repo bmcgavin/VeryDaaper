@@ -712,13 +712,16 @@ int mdnsd_out(mdnsd d, struct message *m, unsigned long int *ip, unsigned short 
             if (!q->answered_cached)
             {
                 c = 0;
-                while((c = _c_next(d,c,q->name,q->type)) != 0 &&
-                        c->rr.ttl > (unsigned)d->now.tv_sec + 8)
-                {
-                    /* FIXME HERE */
-                    _q_answer(d,c, 1);
+                /* FIXME SOMETIMES SEGFAULT */
+                if (q->name && q->type) {
+                	while((c = _c_next(d,c,q->name,q->type)) != 0 &&
+                			c->rr.ttl > (unsigned)d->now.tv_sec + 8)
+                	{
+                		/* FIXME HERE */
+                		_q_answer(d,c, 1);
+                	}
+                	q->answered_cached = 1;
                 }
-                q->answered_cached = 1;
             }
         }
         d->checkqlist = nextbest;

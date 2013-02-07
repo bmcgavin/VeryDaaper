@@ -11,14 +11,22 @@
 #include <bps/bps.h>
 #include <bps/event.h>
 #include <stdlib.h>
+#include <bps/dialog.h>
+#include <bps/mmrenderer.h>
+#include <mm/renderer.h>
+#include <mm/renderer/types.h>
 
 #include "daapfunc.h"
+#include "libopendaap-0.4.0/debug/debug.h"
 
 bool shutdown = false;
 bool menu_show_animation = false;
 bool menu_hide_animation = false;
 
 bool connected = false;
+
+int mm_stopEventsToIgnore = 0;
+
 void handleClick(int x, int y) {
 	daap_host* host = getVisibleHost();
 	if (host == NULL) {
@@ -77,10 +85,14 @@ void handleClick(int x, int y) {
 				daap_host_play_song(PLAYSOURCE_HOST, host, next_song->id);
 			}
 		} else {
+			//Do we have a track?
+
 			//Track, do nothing
 			//daap_audiocb_finished();
 		}
 		//Play next song from selected playlist
+		//This triggers two stop events, so ignore another one.
+		//mm_stopEventsToIgnore++;
 		daap_audiocb_finished();
 	} else {
 		initial_connect(host);
@@ -126,12 +138,41 @@ void handleScreenEvent(bps_event_t *event) {
     }
 }
 
+
+
+void handleMMRendererEvent(bps_event_t* event) {
+	switch (bps_event_get_code(event)) {
+	case MMRENDERER_STATE_CHANGE:
+		//const int userdata = mmrenderer_event_get_userdata(event);
+		switch(mmrenderer_event_get_state(event)) {
+		case MMR_STOPPED:
+			//NEXT!
+			if (mm_stopEventsToIgnore <= 0) {
+				//debugMsg("STOPPING", -1);
+				daap_audiocb_finished();
+			}
+			mm_stopEventsToIgnore--;
+			break;
+		case MMR_PLAYING:
+			//debugMsg("PLAYING", -1);
+			break;
+		default:
+			//debugMsg("UNKNOWN MMR STATE", -1);
+			break;
+		}
+		break;
+	default:
+		//debugMsg("UNKNOWN MMR EVENT", -1);
+		break;
+	}
+}
+
 int resize(bps_event_t *event) {
 	return 0;
 }
 
 
-static void handleNavigatorEvent(bps_event_t *event) {
+void handleNavigatorEvent(bps_event_t *event) {
     switch (bps_event_get_code(event)) {
     case NAVIGATOR_ORIENTATION_CHECK:
         //Signal navigator that we intend to resize
@@ -168,28 +209,5 @@ static void handleNavigatorEvent(bps_event_t *event) {
             }
         }
         break;
-    }
-}
-
-static void handle_events() {
-    //Request and process available BPS events
-    for(;;) {
-        bps_event_t *event = NULL;
-        if (BPS_SUCCESS != bps_get_event(&event, 0)) {
-            fprintf(stderr, "bps_get_event failed\n");
-            break;
-        }
-
-        if (event) {
-            int domain = bps_event_get_domain(event);
-
-            if (domain == screen_get_domain()) {
-                handleScreenEvent(event);
-            } else if (domain == navigator_get_domain()) {
-                handleNavigatorEvent(event);
-            }
-        } else {
-            break;
-        }
     }
 }

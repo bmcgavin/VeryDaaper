@@ -26,6 +26,7 @@
 #include <bps/screen.h>
 #include <bps/bps.h>
 #include <bps/event.h>
+#include <bps/mmrenderer.h>
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
@@ -43,12 +44,17 @@
 #if ! defined(DEFAULT_AUDIO_OUT)
     #define DEFAULT_AUDIO_OUT "audio:default"
 #endif
+#if ! defined(DEFAULT_CONTEXT_NAME)
+	#define DEFAULT_CONTEXT_NAME "context"
+#endif
 
 static screen_context_t screen_cxt;
 
 static font_t* font;
 static float pos_x, pos_y;
 float text_width, text_height;
+mmrenderer_monitor_t* mmr_monitor = NULL;
+intptr_t userdata = NULL;
 
 int initialize() {
 
@@ -74,6 +80,7 @@ int initialize() {
 }
 
 void render() {
+	glClear(GL_COLOR_BUFFER_BIT);
 	int i;
 	pos_y = 550;
 	//int x = 0;
@@ -140,11 +147,15 @@ int main(int argc, char *argv[]) {
     }
 
     conn = mmr_connect(NULL);
-	ctxt = mmr_context_create(conn, "context", 0, mode);
+	ctxt = mmr_context_create(conn, DEFAULT_CONTEXT_NAME, 0, mode);
 	int audio_oid = mmr_output_attach(ctxt, DEFAULT_AUDIO_OUT, "audio");
 
 	debugMsg("Sending initial callback", -1);
 	sendInitialCallback();
+
+	userdata = (intptr_t)malloc(sizeof(intptr_t));
+	mmr_monitor = NULL;
+	mmr_monitor = mmrenderer_request_events(DEFAULT_CONTEXT_NAME, 0, userdata);
 
     while (!exit_application) {
         //Request and process all available BPS events
@@ -162,6 +173,8 @@ int main(int argc, char *argv[]) {
                 } else if ((domain == navigator_get_domain())
                         && (NAVIGATOR_EXIT == bps_event_get_code(event))) {
                     exit_application = 1;
+                } else if ((domain == mmrenderer_get_domain())) {
+                	handleMMRendererEvent(event);
                 }
             } else {
                 break;
