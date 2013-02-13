@@ -36,6 +36,7 @@ void handleClick(int x, int y) {
 	if (connected) {
 		if (x > 900) {
 			//Controls!
+			DAAP_ClientHost_DatabaseItem* prev_song = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem));
 			if (y <= 50) {
 				//Play
 				if (!daap_host_get_playing(host)) {
@@ -54,6 +55,33 @@ void handleClick(int x, int y) {
 				}
 			} else if (y <= 150) {
 				//Stop
+				if (daap_host_get_playing(host) || daap_host_get_paused(host)) {
+					daap_host_stop_song(host);
+				}
+			} else if (y <= 200) {
+				//Prev song
+				int prev_song_id = daap_host_prev_artist_album_songs(host, prev_song,
+						get_songindex_by_id(host, daap_host_get_selected_song(host)->id), daap_host_get_selected_artist(host),
+						daap_host_get_selected_album(host));
+				if (prev_song_id != -1) {
+					bool was_playing = daap_host_get_playing(host);
+					if (was_playing || daap_host_get_paused(host)) {
+						daap_host_stop_song(host);
+					}
+					if (was_playing) {
+						daap_host_play_song(PLAYSOURCE_HOST, host, prev_song->id);
+					} else {
+						//Not playing, but update display
+						daap_host_set_selected_song(host, prev_song);
+					}
+				}
+			} else if (y <= 250) {
+				//Prev album
+				if (daap_host_get_playing(host) || daap_host_get_paused(host)) {
+					daap_host_stop_song(host);
+				}
+			} else if (y <= 300) {
+				//Prev artist
 				if (daap_host_get_playing(host) || daap_host_get_paused(host)) {
 					daap_host_stop_song(host);
 				}
@@ -77,7 +105,8 @@ void handleClick(int x, int y) {
 							get_songindex_by_id(host, daap_host_get_selected_song(host)->id), next_artist,
 							daap_host_get_selected_album(host));
 				}
-				daap_host_set_selected_song(host, next_song);
+				//Now set in daap_host_playing_song();
+				//daap_host_set_selected_song(host, next_song);
 				/*
 				stop_type = STOP_NEWSONG;
 				daap_host_play_song(PLAYSOURCE_HOST, host, next_song->id);
@@ -106,7 +135,8 @@ void handleClick(int x, int y) {
 							-1, daap_host_get_selected_artist(host),
 							next_album);
 				}
-				daap_host_set_selected_song(host, next_song);
+				//Now set in daap_host_playing_song();
+				//daap_host_set_selected_song(host, next_song);
 				/*
 				stop_type = STOP_NEWSONG;
 				daap_host_play_song(PLAYSOURCE_HOST, host, next_song->id);
@@ -141,7 +171,8 @@ void handleClick(int x, int y) {
 								next_album);
 					}
 				}
-				daap_host_set_selected_song(host, next_song);
+				//Now set in daap_host_playing_song();
+				//daap_host_set_selected_song(host, next_song);
 				//stop_type = STOP_NEWSONG;
 				//daap_host_play_song(PLAYSOURCE_HOST, host, next_song->id);
 				//Track, do nothing
@@ -156,6 +187,9 @@ void handleClick(int x, int y) {
 			}
 			if (was_playing) {
 				daap_host_play_song(PLAYSOURCE_HOST, host, next_song->id);
+			} else {
+				//Not playing, but update display
+				daap_host_set_selected_song(host, next_song);
 			}
 		}
 	} else {

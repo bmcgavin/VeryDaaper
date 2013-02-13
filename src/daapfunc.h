@@ -161,6 +161,10 @@ void daap_host_set_selected_album(daap_host *host, album *album);
 void daap_host_set_selected_song(daap_host* host, DAAP_ClientHost_DatabaseItem* song);
 char *daap_host_get_artistname(artist *artist);
 char *daap_host_get_albumname(album *album);
+int daap_host_prev_artist_album_songs(daap_host *host,
+                                      DAAP_ClientHost_DatabaseItem *song,
+                                      int next_id,
+                                      artist *artist, album *album);
 int daap_host_enum_artist_album_songs(daap_host *host,
                                       DAAP_ClientHost_DatabaseItem *song,
                                       int prev_id,

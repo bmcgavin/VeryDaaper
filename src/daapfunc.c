@@ -699,6 +699,8 @@ void daap_host_play_song(enum playsource playsource, daap_host *host, int song_i
     host->playing = true;
     host->paused = false;
 
+    daap_host_set_selected_song(host, &host->songs[songindex]);
+
 #ifdef PLAYBOOK
     if (DAAP_ClientHost_MMRGetAudioFile(host->libopendaap_host,
                                           host->databases[0].id, song_id,
@@ -1196,6 +1198,66 @@ char *daap_host_get_albumname(album *album)
 {
     return album->album;
 }
+
+int daap_host_prev_artist_album_songs(daap_host *host,
+                                      DAAP_ClientHost_DatabaseItem *song,
+                                      int next_id,
+                                      artist *artist, album *album)
+{
+    int i;
+    int max_song_id = -1;
+    int max_track_number = -1;
+    if (next_id >= 0) {
+    	//Got the previous song, so get the track number
+    	max_track_number = host->selected_song->songtracknumber;
+    }
+
+    DAAP_ClientHost_DatabaseItem *thissong = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem*));
+    for (i = next_id; i >= 0; i--)
+    {
+        thissong = &(host->songs[i]);
+        if (artist && (!thissong->songartist ||
+                    strcasecmp(daap_host_get_artistname(artist),
+                               thissong->songartist) != 0))
+            continue;
+        if (album && (!thissong->songalbum ||
+                    strcasecmp(daap_host_get_albumname(album),
+                               thissong->songalbum) != 0))
+            continue;
+
+        if (thissong->songtracknumber == (max_track_number - 1) ||
+        	//Same album, tracknumbers are zero
+        	thissong->songtracknumber == 0) {
+            if (song)
+            	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
+            return i;
+        }
+
+        if (max_song_id == -1 ||
+        	thissong->songtracknumber > max_track_number) {
+        	max_song_id = i;
+        	max_track_number = thissong->songtracknumber;
+        	continue;
+        }
+        //What?
+        /*
+        if (thissong->songtracknumber != 1)
+        	continue;*/
+
+        //Got a song from the same album
+        if (song)
+        	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
+        return i;
+
+    }
+
+    if (song && (max_song_id > -1)) {
+    	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
+    	return max_song_id;
+    }
+    return -1;
+}
+
 
 int daap_host_enum_artist_album_songs(daap_host *host,
                                       DAAP_ClientHost_DatabaseItem *song,
