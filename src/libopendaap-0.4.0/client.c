@@ -1678,6 +1678,22 @@ int DAAP_ClientHost_MMRStop(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt)
     return 0;
 }
 
+int DAAP_ClientHost_MMRPause(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt)
+{
+	//mm_stopEventsToIgnore++;
+	//mmr_stop(ctxt);
+	mmr_speed_set(ctxt, 0);
+    return 0;
+}
+
+int DAAP_ClientHost_MMRResume(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt, const char* position)
+{
+	mmr_speed_set(ctxt, 1000);
+	//mmr_play(ctxt);
+	//mmr_seek(ctxt, position);
+	return 0;
+}
+
 
 
 /********** update watcher ***********/

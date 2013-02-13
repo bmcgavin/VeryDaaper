@@ -245,6 +245,10 @@ int DAAP_ClientHost_MMRGetAudioFile(DAAP_SClientHost *pCHThis,
 /* call this to make the async get abort asap */
 int DAAP_ClientHost_MMRStop(DAAP_SClientHost *pCHThis,
 		mmr_context_t *ctxt);
+int DAAP_ClientHost_MMRPause(DAAP_SClientHost *pCHThis,
+		mmr_context_t *ctxt);
+int DAAP_ClientHost_MMRResume(DAAP_SClientHost *pCHThis,
+		mmr_context_t *ctxt, const char* position);
 
 /* [incomplete]
  * database update stuff. call this to make libopendaap open a request

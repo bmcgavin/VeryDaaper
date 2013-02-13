@@ -102,6 +102,12 @@ struct daap_hostTAG
     /* used to mark if the host is dead, but references
      * still exist */
     int dead;
+
+    /* song position */
+    char* position;
+    bool playing;
+    bool paused;
+    DAAP_ClientHost_DatabaseItem* selected_song;
 };
 /*************** Status Callback from libopendaap *******/
 
@@ -111,7 +117,7 @@ void daap_audiocb_finished()
     if (!prevhost) {
     	//????
     	prevhost = visibleHost;
-    	return;
+    	//return;
     }
     int previd = playing_song.song_id;
     enum playsource prevsource = playing_song.playsource;
@@ -176,6 +182,9 @@ void daap_audiocb_finished()
                 else
                 {
                     int songindex = get_songindex_by_id(prevhost, previd);
+                    if (songindex == -1) {
+                    	break;
+                    }
                     song = &(prevhost->songs[songindex]);
 
                     /* if some other artist / album is visible, break */
@@ -565,7 +574,7 @@ void daap_host_addref(daap_host *host)
     //if (!(host->ref++)) initial_connect(host);
 }
 
-static int get_songindex_by_id(daap_host *host, int song_id)
+int get_songindex_by_id(daap_host *host, int song_id)
 {
     int i;
     if (host == NULL) {
@@ -582,6 +591,58 @@ static int get_songindex_by_id(daap_host *host, int song_id)
 
 
 /******************* daap music playing *****************/
+void daap_host_stop_song(daap_host *host) {
+#ifdef PLAYBOOK
+	DAAP_ClientHost_MMRStop(playing_song.host->libopendaap_host, ctxt);
+#else
+	//DAAP_ClientHost_AsyncStop(playing_song.host->libopendaap_host);
+#endif
+    host->playing = false;
+    host->paused = false;
+    playing_song.host = NULL;
+}
+
+void daap_host_pause_song(daap_host *host) {
+#ifdef PLAYBOOK
+	DAAP_ClientHost_MMRPause(playing_song.host->libopendaap_host, ctxt);
+#else
+    //DAAP_ClientHost_AsyncStop(playing_song.host->libopendaap_host);
+#endif
+	host->playing = false;
+	host->paused = true;
+}
+
+bool daap_host_get_paused(daap_host* host) {
+	return host->paused;
+}
+
+void daap_host_resume_song(daap_host *host, const char* position) {
+#ifdef PLAYBOOK
+	DAAP_ClientHost_MMRResume(playing_song.host->libopendaap_host, ctxt, position);
+#else
+	//DAAP_ClientHost_AsyncStop(playing_song.host->libopendaap_host);
+#endif
+	host->playing = true;
+	host->paused = false;
+	playing_song.host = host;
+}
+
+void daap_host_set_position(daap_host* host, char* position) {
+
+	memcpy(host->position, position, strlen(position) + 1);
+}
+
+const char* daap_host_get_position (daap_host* host) {
+	return host->position;
+}
+
+bool daap_host_get_playing (daap_host* host) {
+	return host->playing;
+}
+
+void daap_host_set_playing (daap_host* host, bool playing) {
+	host->playing = playing;
+}
 
 void daap_host_play_song(enum playsource playsource, daap_host *host, int song_id)
 {
@@ -600,6 +661,7 @@ void daap_host_play_song(enum playsource playsource, daap_host *host, int song_i
         stop_type = STOP_NEWSONG;
         /* this should then call cb_eos in gstreamer, which will
          * do the rest */
+        host->playing = false;
 #ifdef PLAYBOOK
         DAAP_ClientHost_MMRStop(playing_song.host->libopendaap_host, ctxt);
 #else
@@ -634,9 +696,8 @@ void daap_host_play_song(enum playsource playsource, daap_host *host, int song_i
 
     if (pipe(songpipe) == -1) return;
 
-    char* tmp = calloc(10 + strlen(host->songs[songindex].itemname) + 1, sizeof(char));
-    sprintf(tmp, "New song: %s", host->songs[songindex].itemname);
-    debugMsg(tmp, 9);
+    host->playing = true;
+    host->paused = false;
 
 #ifdef PLAYBOOK
     if (DAAP_ClientHost_MMRGetAudioFile(host->libopendaap_host,
@@ -755,6 +816,7 @@ void initial_connect(daap_host *host)
     host->artists = NULL;
     host->selected_artist = NULL;
     host->selected_album = NULL;
+    host->selected_song = NULL;
     debugMsg("update_songs", -1);
     update_songs(host);
 
@@ -765,10 +827,18 @@ void initial_connect(daap_host *host)
     //if (host->playlists)
         //schedule_lists_draw(1, 0, 0, 0);
 
+    host->position = calloc(10, sizeof(char));
+    host->playing = false;
+    host->paused = false;
     //RPJ
     visibleHost = host;
 
-    on_song_row_activated();
+    daap_host_set_selected_artist(host, daap_host_get_next_artist(host, NULL));
+    daap_host_set_selected_album(host, daap_host_get_next_album(host, NULL));
+    DAAP_ClientHost_DatabaseItem* song = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem));
+    int selected_song_id = daap_host_enum_artist_album_songs(host, song, -1, host->selected_artist, host->selected_album);
+    daap_host_set_selected_song(host, song);
+    //on_song_row_activated();
 
 }
 
@@ -961,6 +1031,9 @@ static void cb_hosts_updated()
     //RPJ
     //initial_connect(first);
     //schedule_lists_draw(1, 0, 0, 0);
+    if (first == NULL) {
+    	return;
+    }
     debugMsg(first->sharename, -1);
 }
 
@@ -1001,6 +1074,10 @@ static int cb_enum_hosts( DAAP_SClient *client,
     else clientHosts = newhost;
 
     return 1;
+}
+
+DAAP_ClientHost_DatabaseItem* daap_host_get_selected_song(daap_host* host) {
+	return host->selected_song;
 }
 
 artist *daap_host_get_next_artist(daap_host *host, artist *curr) {
@@ -1100,6 +1177,16 @@ void daap_host_set_selected_album(daap_host *host, album *album)
     //schedule_lists_draw(0, 0, 0, 1);
 }
 
+void daap_host_set_selected_song(daap_host* host, DAAP_ClientHost_DatabaseItem* song) {
+
+	host->selected_song = song;
+
+    char* tmp = calloc(10 + strlen(song->itemname) + 1, sizeof(char));
+    sprintf(tmp, "New song: %s", song->itemname);
+    debugMsg(tmp, 9);
+
+}
+
 char *daap_host_get_artistname(artist *artist)
 {
     return artist->artist;
@@ -1118,10 +1205,15 @@ int daap_host_enum_artist_album_songs(daap_host *host,
     int i;
     int min_song_id = -1;
     int min_track_number = -1;
+    if (prev_id >= 0) {
+    	//Got the previous song, so get the track number
+    	min_track_number = host->selected_song->songtracknumber;
+    }
 
+    DAAP_ClientHost_DatabaseItem *thissong = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem*));
     for (i = prev_id+1; i < host->nSongs; i++)
     {
-        DAAP_ClientHost_DatabaseItem *thissong = &(host->songs[i]);
+        thissong = &(host->songs[i]);
         if (artist && (!thissong->songartist ||
                     strcasecmp(daap_host_get_artistname(artist),
                                thissong->songartist) != 0))
@@ -1131,25 +1223,36 @@ int daap_host_enum_artist_album_songs(daap_host *host,
                                thissong->songalbum) != 0))
             continue;
 
+        if (thissong->songtracknumber == (min_track_number + 1) ||
+        	//Same album, tracknumbers are zero
+        	thissong->songtracknumber == 0) {
+            if (song)
+            	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
+            return i;
+        }
 
         if (min_song_id == -1 ||
-        	thissong->songtracknumber < min_track_number) {
+        	thissong->songtracknumber <= min_track_number) {
         	min_song_id = i;
         	min_track_number = thissong->songtracknumber;
         }
+        //What?
+        /*
         if (thissong->songtracknumber != 1)
-        	continue;
+        	continue;*/
 
+        //Got a song from the same album
         if (song)
         	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
         return i;
 
     }
-    DAAP_ClientHost_DatabaseItem *thissong = &(host->songs[min_song_id]);
-    if (song)
-    	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
 
-    return min_song_id;
+    if (song && (min_song_id > -1)) {
+    	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
+    	return min_song_id;
+    }
+    return -1;
 }
 
 album* get_new_album() {

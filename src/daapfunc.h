@@ -67,7 +67,7 @@ static void update_playlists(daap_host *host);
 /**** daap utility functions used by the rest of tb *****/
 void daap_host_addref(daap_host *host);
 
-static int get_songindex_by_id(daap_host *host, int song_id);
+int get_songindex_by_id(daap_host *host, int song_id);
 
 /******************* daap music playing *****************/
 
@@ -78,8 +78,15 @@ enum playsource
     PLAYSOURCE_PARTY
 };
 
-
+void daap_host_stop_song(daap_host *host);
+void daap_host_pause_song(daap_host *host);
+bool daap_host_get_paused(daap_host* host);
+void daap_host_resume_song(daap_host *host, const char* position);
 void daap_host_play_song(enum playsource playsource, daap_host *host, int song_id);
+
+void daap_host_set_position (daap_host* host, char* position);
+const char* daap_host_get_position (daap_host* host);
+bool daap_host_get_playing (daap_host* host);
 
 /* callbacks */
 void on_song_row_activated();
@@ -134,6 +141,9 @@ static song_ref playing_song;
 album* get_new_album();
 artist* get_new_artist();
 
+char* get_current_song_length(daap_host* host);
+
+DAAP_ClientHost_DatabaseItem* daap_host_get_selected_song(daap_host* host);
 artist *daap_host_get_next_artist(daap_host *host, artist *curr);
 album *daap_host_get_next_album(daap_host *host, album *curr);
 
@@ -148,6 +158,7 @@ artist *daap_host_get_selected_artist(daap_host *host);
 album *daap_host_get_selected_album(daap_host *host);
 void daap_host_set_selected_artist(daap_host *host, artist *artist);
 void daap_host_set_selected_album(daap_host *host, album *album);
+void daap_host_set_selected_song(daap_host* host, DAAP_ClientHost_DatabaseItem* song);
 char *daap_host_get_artistname(artist *artist);
 char *daap_host_get_albumname(album *album);
 int daap_host_enum_artist_album_songs(daap_host *host,

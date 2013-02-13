@@ -38,6 +38,7 @@
 #include "libopendaap-0.4.0/debug/debug.h"
 #include "daapfunc.h"
 #include "events.h"
+#include "gui.h"
 
 #define DEFAULT_DEBUG_CHANNEL "main"
 
@@ -79,6 +80,9 @@ int initialize() {
     return EXIT_SUCCESS;
 }
 
+
+
+
 void render() {
 	glClear(GL_COLOR_BUFFER_BIT);
 	int i;
@@ -88,6 +92,15 @@ void render() {
 	for (i = 0; i <= x; i++) {
 		bbutil_render_text(font, getRPJDebugMsg(i), pos_x, pos_y, 0.35f, 0.35f, 0.35f, 1.0f);
 		pos_y -= (text_height + 2);
+	}
+	//GUI
+	x = getGUIIdx();
+	float gui_pos_x = 0.0f;
+	float gui_pos_y = 0.0f;
+	for (i = 0; i < x; i++) {
+		gui_pos_x = getGUIPosX(i);
+		gui_pos_y = getGUIPosY(i);
+		bbutil_render_text(font, getGUIMsg(i), gui_pos_x, gui_pos_y, 0.35f, 0.35f, 0.35f, 1.0f);
 	}
     bbutil_swap();
 }
