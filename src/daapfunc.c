@@ -20,6 +20,7 @@
 #include "daapfunc.h"
 #include "libopendaap-0.4.0/debug/debug.h"
 #include "events.h"
+#include "gui.h"
 
 #define DEFAULT_DEBUG_CHANNEL "daapfunc"
 
@@ -152,6 +153,24 @@ void daap_audiocb_finished()
     {
         switch (prevsource)
         {
+        case PLAYSOURCE_RANDOM:
+            TRACE("STOP_NONE : PLAYSOURCE_RANDOM\n");
+            {
+                DAAP_ClientHost_DatabaseItem *song;
+
+                //Get a random songID
+                int i = rand() % prevhost->nSongs;
+
+				song = &(prevhost->songs[i]);
+
+				daap_host_set_selected_artist(prevhost, daap_host_get_artist_for_song(prevhost, song));
+				daap_host_set_selected_album(prevhost, daap_host_get_album_for_song_and_artist(prevhost, song, daap_host_get_selected_artist(prevhost)));
+
+                /* ok, lets play it */
+                mm_stopEventsToIgnore++;
+                daap_host_play_song(PLAYSOURCE_RANDOM, prevhost, song->id);
+            }
+        	break;
         case PLAYSOURCE_HOST:
             TRACE("STOP_NONE : PLAYSOURCE_HOST\n");
             {
@@ -222,7 +241,7 @@ void daap_audiocb_finished()
 
                 /* ok, lets play it */
                 mm_stopEventsToIgnore++;
-                daap_host_play_song(PLAYSOURCE_HOST, prevhost, song->id);
+                daap_host_play_song(PLAYSOURCE_RANDOM, prevhost, song->id);
             }
             break;
         case PLAYSOURCE_PARTY:
@@ -1095,28 +1114,77 @@ artist *daap_host_get_next_artist(daap_host *host, artist *curr) {
 	return prev;
 }
 
+artist* daap_host_get_first_artist(daap_host* host) {
+	return host->artists;
+}
 
-album *daap_host_get_next_album(daap_host *host, album *curr) {
-	if (curr && curr->next != NULL) {
-		return curr->next;
-	}
-	if (host->selected_artist && !host->selected_album) {
-		album* prev = host->selected_artist->albumhead;
-		while (prev->next) {
-			prev = prev->next;
+album *daap_host_get_first_album_for_artist(daap_host* host, artist* curr) {
+	album* prev;
+	//Next pointer is actually previous alphabetically.
+	prev = curr->albumhead;
+	do {
+		if (prev && prev->next == NULL) {
+			return prev;
 		}
-		return prev;
-	}
-	artist* prev = daap_host_get_next_artist(host, host->selected_artist);
+	} while (prev = prev->next);
+	//Should never get here.
+	return NULL;
+}
+
+album *daap_host_get_prev_album(daap_host *host, album *curr) {
+	album* prev;
+	//Next pointer is actually previous alphabetically.
+	prev = host->selected_artist->albumhead;
+	do {
+		if (prev && prev == curr) {
+			return prev->next;
+		}
+	} while (prev = prev->next);
+	//Only one album
+	return NULL;
+}
+
+artist *daap_host_get_prev_artist(daap_host *host, artist *curr) {
+	artist* prev = host->artists;
 	while (prev != NULL) {
-		if (prev->next == host->selected_artist) {
-			break;
+		if (prev == curr) {
+			return prev->next;
 		}
 		if (prev->next != NULL) {
 			prev = prev->next;
 		}
 	}
-	return prev->albumhead;
+	return prev;
+}
+
+album *daap_host_get_next_album(daap_host *host, album *curr) {
+	album* prev;
+	//Next pointer is actually previous alphabetically.
+	if (curr && host->selected_artist) {
+		prev = host->selected_artist->albumhead;
+		while (prev && prev->next != curr) {
+			prev = prev->next;
+		}
+		return prev;
+	}
+	//Get first
+	if (host->selected_artist && !host->selected_album) {
+		prev = host->selected_artist->albumhead;
+		while (prev && prev->next) {
+			prev = prev->next;
+		}
+		return prev;
+	}
+	artist* prev_artist = daap_host_get_next_artist(host, host->selected_artist);
+	while (prev_artist != NULL) {
+		if (prev_artist && prev_artist->next == host->selected_artist) {
+			break;
+		}
+		if (prev_artist->next != NULL) {
+			prev_artist = prev_artist->next;
+		}
+	}
+	return prev_artist->albumhead;
 }
 
 artist *daap_host_enum_artists(daap_host *host, artist *prev)
@@ -1139,6 +1207,38 @@ artist *daap_host_get_selected_artist(daap_host *host)
 album *daap_host_get_selected_album(daap_host *host)
 {
     return host->selected_album;
+}
+
+artist* daap_host_get_artist_for_song(daap_host* host, DAAP_ClientHost_DatabaseItem* song) {
+	int i = get_songindex_by_id(host, song->id);
+	if (i == -1) {
+		return NULL;
+	}
+	char* artistname = host->songs[i].songartist;
+	artist* newartist = host->artists;
+	do {
+		if (strcasecmp(newartist->artist, artistname) == 0) {
+			return newartist;
+		}
+	} while (newartist = newartist->next);
+	return NULL;
+}
+
+album *daap_host_get_album_for_song_and_artist(daap_host* host, DAAP_ClientHost_DatabaseItem * song, artist* artist) {
+	int i = get_songindex_by_id(host, song->id);
+	if (i == -1) {
+		return NULL;
+	}
+	char* albumname = host->songs[i].songalbum;
+	album* newalbum = artist->albumhead;
+	do {
+		if (strcasecmp(newalbum->album, albumname) == 0) {
+			return newalbum;
+		}
+	} while (newalbum = newalbum->next);
+	return NULL;
+
+
 }
 
 void daap_host_set_selected_artist(daap_host *host, artist *artist)
@@ -1179,6 +1279,44 @@ void daap_host_set_selected_album(daap_host *host, album *album)
     //schedule_lists_draw(0, 0, 0, 1);
 }
 
+void daap_host_toggle_playsource_random(daap_host* host) {
+	if (playing_song.playsource == PLAYSOURCE_RANDOM) {
+		playing_song.playsource = PLAYSOURCE_HOST;
+	} else if (playing_song.playsource == PLAYSOURCE_HOST) {
+		playing_song.playsource = PLAYSOURCE_RANDOM;
+	}
+	toggleShuffle();
+}
+
+void daap_host_jump_to_letter(daap_host* host, char* c) {
+	artist* nextartist = host->artists;
+	album* nextalbum = NULL;
+	bool found = false;
+	char* target = NULL;
+	while (nextartist->next) {
+		target = nextartist->next->artist;
+		if (strncasecmp(target, "the ", 4) == 0) {
+			target += 4;
+		}
+		if (!found && strncasecmp(&(target[0]), c, sizeof(char)) == 0) {
+			found = true;
+		}
+		if (found && strncasecmp(&(target[0]), c, sizeof(char)) != 0) {
+			nextalbum = daap_host_get_first_album_for_artist(host, nextartist);
+			DAAP_ClientHost_DatabaseItem* nextsong = (DAAP_ClientHost_DatabaseItem*) malloc(sizeof(DAAP_ClientHost_DatabaseItem));
+			int song_id = daap_host_enum_artist_album_songs(host, nextsong, -1, nextartist, nextalbum);
+			if (song_id != -1) {
+				daap_host_set_selected_album(host, nextalbum);
+				daap_host_set_selected_artist(host, nextartist);
+				daap_host_set_selected_song(host, nextsong);
+			}
+			break;
+		}
+		nextartist = nextartist->next;
+	}
+}
+
+
 void daap_host_set_selected_song(daap_host* host, DAAP_ClientHost_DatabaseItem* song) {
 
 	host->selected_song = song;
@@ -1204,7 +1342,17 @@ int daap_host_prev_artist_album_songs(daap_host *host,
                                       int next_id,
                                       artist *artist, album *album)
 {
-    int i;
+    DAAP_ClientHost_DatabaseItem *thissong = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem*));
+
+	if (next_id > 0) {
+    	thissong = &(host->songs[next_id-1]);
+        if (song)
+        	memcpy(song, thissong, sizeof(DAAP_ClientHost_DatabaseItem));
+        return next_id-1;
+    }
+	return -1;
+
+	int i;
     int max_song_id = -1;
     int max_track_number = -1;
     if (next_id >= 0) {
@@ -1212,7 +1360,6 @@ int daap_host_prev_artist_album_songs(daap_host *host,
     	max_track_number = host->selected_song->songtracknumber;
     }
 
-    DAAP_ClientHost_DatabaseItem *thissong = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem*));
     for (i = next_id; i >= 0; i--)
     {
         thissong = &(host->songs[i]);

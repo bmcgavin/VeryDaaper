@@ -11,6 +11,7 @@
 int getGUIIdx();
 float getGUIPosX(int idx);
 float getGUIPosY(int idx);
+void toggleShuffle();
 char* getGUIMsg(int idx);
 
 #endif /* GUI_H_ */

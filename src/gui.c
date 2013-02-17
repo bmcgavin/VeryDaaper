@@ -6,8 +6,10 @@
  */
 
 #include <GLES2/gl2.h>
+#include <strings.h>
 
-#define GUI_ITEMS_COUNT 6
+#define GUI_ITEMS_COUNT 8
+#define SHUFFLE_IDX 6
 
 int getGUIIdx() {
 	return GUI_ITEMS_COUNT;
@@ -19,7 +21,9 @@ static char* messages[GUI_ITEMS_COUNT] = {
 	"Stop",
 	"Prev Song",
 	"Prev Album",
-	"Prev Artist"
+	"Prev Artist",
+	"Shuffle  ",
+	"Goto M"
 };
 
 static float positions[GUI_ITEMS_COUNT * 2] = {
@@ -28,8 +32,18 @@ static float positions[GUI_ITEMS_COUNT * 2] = {
 	900.0f, 450.0f,
 	900.0f, 400.0f,
 	900.0f, 350.0f,
-	900.0f, 300.0f
+	900.0f, 300.0f,
+	900.0f, 250.0f,
+	900.0f, 200.0f
 };
+
+void toggleShuffle() {
+	if (strncasecmp(messages[SHUFFLE_IDX], "Shuffle  ", 9) == 0) {
+		messages[SHUFFLE_IDX] = "Shuffle X";
+	} else {
+		messages[SHUFFLE_IDX] = "Shuffle  ";
+	}
+}
 
 char* getGUIMsg(int idx) {
 	return (char*)messages[idx];

@@ -75,7 +75,8 @@ enum playsource
 {
     PLAYSOURCE_NONE = 0,
     PLAYSOURCE_HOST,
-    PLAYSOURCE_PARTY
+    PLAYSOURCE_PARTY,
+    PLAYSOURCE_RANDOM
 };
 
 void daap_host_stop_song(daap_host *host);
@@ -145,7 +146,13 @@ char* get_current_song_length(daap_host* host);
 
 DAAP_ClientHost_DatabaseItem* daap_host_get_selected_song(daap_host* host);
 artist *daap_host_get_next_artist(daap_host *host, artist *curr);
+artist *daap_host_get_prev_artist(daap_host *host, artist *curr);
 album *daap_host_get_next_album(daap_host *host, album *curr);
+album *daap_host_get_prev_album(daap_host *host, album *curr);
+artist* daap_host_get_first_artist(daap_host* host);
+album *daap_host_get_first_album_for_artist(daap_host* host, artist* curr);
+album *daap_host_get_prev_album(daap_host *host, album *curr);
+
 
 mode_t mode;
 mmr_connection_t *conn;
@@ -156,8 +163,12 @@ artist *daap_host_enum_artists(daap_host *host, artist *prev);
 album *daap_host_enum_album(artist *artist, album *prev);
 artist *daap_host_get_selected_artist(daap_host *host);
 album *daap_host_get_selected_album(daap_host *host);
+artist* daap_host_get_artist_for_song(daap_host* host, DAAP_ClientHost_DatabaseItem* song);
+album *daap_host_get_album_for_song_and_artist(daap_host* host, DAAP_ClientHost_DatabaseItem * song, artist* artist);
 void daap_host_set_selected_artist(daap_host *host, artist *artist);
 void daap_host_set_selected_album(daap_host *host, album *album);
+void daap_host_toggle_playsource_random(daap_host* host);
+void daap_host_jump_to_letter(daap_host* host, char* c);
 void daap_host_set_selected_song(daap_host* host, DAAP_ClientHost_DatabaseItem* song);
 char *daap_host_get_artistname(artist *artist);
 char *daap_host_get_albumname(album *album);
