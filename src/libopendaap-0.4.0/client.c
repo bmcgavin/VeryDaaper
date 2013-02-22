@@ -1686,7 +1686,7 @@ int DAAP_ClientHost_MMRPause(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt)
     return 0;
 }
 
-int DAAP_ClientHost_MMRResume(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt, const char* position)
+int DAAP_ClientHost_MMRResume(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt)
 {
 	mmr_speed_set(ctxt, 1000);
 	//mmr_play(ctxt);
@@ -1694,6 +1694,10 @@ int DAAP_ClientHost_MMRResume(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt, co
 	return 0;
 }
 
+int DAAP_ClientHost_MMRSeek(DAAP_SClientHost *pCHThis, mmr_context_t *ctxt, const char* pos) {
+	mmr_seek(ctxt, pos);
+	return 0;
+}
 
 
 /********** update watcher ***********/

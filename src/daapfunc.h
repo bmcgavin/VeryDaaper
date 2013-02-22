@@ -82,10 +82,10 @@ enum playsource
 void daap_host_stop_song(daap_host *host);
 void daap_host_pause_song(daap_host *host);
 bool daap_host_get_paused(daap_host* host);
-void daap_host_resume_song(daap_host *host, const char* position);
+void daap_host_resume_song(daap_host *host);
 void daap_host_play_song(enum playsource playsource, daap_host *host, int song_id);
 
-void daap_host_set_position (daap_host* host, char* position);
+void daap_host_set_position (daap_host* host, const char* position);
 const char* daap_host_get_position (daap_host* host);
 bool daap_host_get_playing (daap_host* host);
 
@@ -168,7 +168,9 @@ album *daap_host_get_album_for_song_and_artist(daap_host* host, DAAP_ClientHost_
 void daap_host_set_selected_artist(daap_host *host, artist *artist);
 void daap_host_set_selected_album(daap_host *host, album *album);
 void daap_host_toggle_playsource_random(daap_host* host);
+char* daap_host_get_song_length(daap_host* host);
 void daap_host_jump_to_letter(daap_host* host, char* c);
+void daap_host_seek_percent(daap_host* host, int pos);
 void daap_host_set_selected_song(daap_host* host, DAAP_ClientHost_DatabaseItem* song);
 char *daap_host_get_artistname(artist *artist);
 char *daap_host_get_albumname(album *album);
@@ -180,6 +182,6 @@ int daap_host_enum_artist_album_songs(daap_host *host,
                                       DAAP_ClientHost_DatabaseItem *song,
                                       int prev_id,
                                       artist *artist, album *album);
-
+bool daap_host_get_random(daap_host* host);
 
 #endif /* DAAPFUNC_H_ */

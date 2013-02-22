@@ -248,8 +248,9 @@ int DAAP_ClientHost_MMRStop(DAAP_SClientHost *pCHThis,
 int DAAP_ClientHost_MMRPause(DAAP_SClientHost *pCHThis,
 		mmr_context_t *ctxt);
 int DAAP_ClientHost_MMRResume(DAAP_SClientHost *pCHThis,
-		mmr_context_t *ctxt, const char* position);
-
+		mmr_context_t *ctxt);
+int DAAP_ClientHost_MMRSeek(DAAP_SClientHost *pCHThis,
+		mmr_context_t *ctxt, const char* pos);
 /* [incomplete]
  * database update stuff. call this to make libopendaap open a request
  * to iTunes asking for database changes.

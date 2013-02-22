@@ -108,7 +108,6 @@ void render() {
 
 int main(int argc, char *argv[]) {
 	int rc;
-    int exit_application = 0;
 
     //Create a screen context that will be used to create an EGL surface to to receive libscreen events
     screen_create_context(&screen_cxt, 0);
@@ -183,9 +182,8 @@ int main(int argc, char *argv[]) {
 
                 if (domain == screen_get_domain()) {
                     handleScreenEvent(event);
-                } else if ((domain == navigator_get_domain())
-                        && (NAVIGATOR_EXIT == bps_event_get_code(event))) {
-                    exit_application = 1;
+                } else if (domain == navigator_get_domain()) {
+                	handleNavigatorEvent(event);
                 } else if ((domain == mmrenderer_get_domain())) {
                 	handleMMRendererEvent(event);
                 }

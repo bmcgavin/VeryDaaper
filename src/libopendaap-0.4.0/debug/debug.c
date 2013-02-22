@@ -181,10 +181,10 @@ void debug_hexdump(void *data, unsigned long len)
 
 void debugInit() {
 	debug_index = 0;
-    debugOut = (char**)calloc(20 * 100, sizeof(char));
+    debugOut = (UChar**)calloc(20 * 100, sizeof(UChar));
     int i;
     for (i = 0; i < 20; i++) {
-    	debugOut[i] = (char*)calloc(100, sizeof(char));
+    	debugOut[i] = (UChar*)calloc(100, sizeof(UChar));
     }
     if (debugOut == NULL) {
     	TRACE("WTF");

@@ -14,6 +14,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <unicode/utf8.h>
+#include <unicode/ustdio.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "libopendaap-0.4.0/client.h"
 #include "libopendaap-0.4.0/daap.h"
@@ -106,9 +110,12 @@ struct daap_hostTAG
 
     /* song position */
     char* position;
+    char* playing_length;
     bool playing;
     bool paused;
+    bool random;
     DAAP_ClientHost_DatabaseItem* selected_song;
+
 };
 /*************** Status Callback from libopendaap *******/
 
@@ -151,15 +158,20 @@ void daap_audiocb_finished()
     }
     else if (stop_type == STOP_NONE) /* ended normally, try and play the next song */
     {
-        switch (prevsource)
-        {
-        case PLAYSOURCE_RANDOM:
+        if (daap_host_get_random(prevhost)) {
             TRACE("STOP_NONE : PLAYSOURCE_RANDOM\n");
             {
                 DAAP_ClientHost_DatabaseItem *song;
 
                 //Get a random songID
+                struct timeval tv;
+                time_t curtime;
+                gettimeofday(&tv, NULL);
+                curtime=tv.tv_sec;
+                srand(curtime);
                 int i = rand() % prevhost->nSongs;
+                //int i = random(prevhost->nSongs);
+                //int i = rand_r(time()()) % prevhost->nSongs;
 
 				song = &(prevhost->songs[i]);
 
@@ -170,78 +182,47 @@ void daap_audiocb_finished()
                 mm_stopEventsToIgnore++;
                 daap_host_play_song(PLAYSOURCE_RANDOM, prevhost, song->id);
             }
-        	break;
-        case PLAYSOURCE_HOST:
+            return;
+        }
+		switch (prevsource)
+		{
+		case PLAYSOURCE_HOST:
             TRACE("STOP_NONE : PLAYSOURCE_HOST\n");
             {
                 DAAP_ClientHost_DatabaseItem *song;
 
-                /* if a playlist is visible, get the next song if we can */
-                if (visiblePlaylist)
-                {
-                    int songindex;
-                    int i;
-                    int nextid = -1;
-                    if (visiblePlaylist->items == NULL) break;
+                int songindex = -1;
+                if (prevhost->selected_song->id != previd) {
+                	song = prevhost->selected_song;
+                } else {
+					songindex = get_songindex_by_id(prevhost, previd);
+					if (songindex == -1) {
+						break;
+					}
+					song = &(prevhost->songs[songindex]);
 
-                    for (i = 0; i < visiblePlaylist->num; i++)
-                    {
-                        if (visiblePlaylist->items[i].songid == previd
-                                && (i+1) < visiblePlaylist->num)
-                        {
-                            nextid = visiblePlaylist->items[i+1].songid;
-                        }
-                    }
-                    if (nextid == -1) break;
+					/* now get the next song */
+					/* not if it's the last song */
+					if (songindex+1 >= prevhost->nSongs) break;
 
-                    songindex = get_songindex_by_id(prevhost, nextid);
-
-                    song = &(prevhost->songs[songindex]);
+					song = &(prevhost->songs[songindex+1]);
                 }
-                else
-                {
-                    int songindex = get_songindex_by_id(prevhost, previd);
-                    if (songindex == -1) {
-                    	break;
-                    }
-                    song = &(prevhost->songs[songindex]);
-
-                    /* if some other artist / album is visible, break */
-                    if (prevhost->selected_artist &&
-                            strcasecmp(prevhost->selected_artist->artist,
-                                       song->songartist) != 0)
-                        break;
-                    if (prevhost->selected_album &&
-                            strcasecmp(prevhost->selected_album->album,
-                                       song->songalbum) != 0)
-                        break;
-
-                    /* now get the next song */
-                    /* not if it's the last song */
-                    if (songindex+1 >= prevhost->nSongs) break;
-
-                    song = &(prevhost->songs[songindex+1]);
-
-                    /* if it's not in the visible list, break */
-                    //UPDATE
-                    if (prevhost->selected_artist &&
-                            strcasecmp(prevhost->selected_artist->artist,
-                                       song->songartist) != 0) {
-                    	daap_host_set_selected_artist(prevhost, daap_host_get_next_artist(prevhost, prevhost->selected_artist));
-                    	daap_host_set_selected_album(prevhost, daap_host_get_next_album(prevhost, prevhost->selected_album));
-                    	//break;
-                    //Don't want to change artist + album AND album
-                    } else if (prevhost->selected_album &&
-                            strcasecmp(prevhost->selected_album->album,
-                                       song->songalbum) != 0) {
-                    	daap_host_set_selected_album(prevhost, daap_host_get_next_album(prevhost, prevhost->selected_album));
-                    	break;
-                    }
-                }
+				//UPDATE
+				if (prevhost->selected_artist &&
+						strcasecmp(prevhost->selected_artist->artist,
+								   song->songartist) != 0) {
+					daap_host_set_selected_artist(prevhost, daap_host_get_next_artist(prevhost, prevhost->selected_artist));
+					daap_host_set_selected_album(prevhost, daap_host_get_next_album(prevhost, prevhost->selected_album));
+				//Don't want to change artist + album AND album
+				} else if (prevhost->selected_album &&
+						strcasecmp(prevhost->selected_album->album,
+								   song->songalbum) != 0) {
+					daap_host_set_selected_album(prevhost, daap_host_get_next_album(prevhost, prevhost->selected_album));
+				}
 
                 /* ok, lets play it */
                 mm_stopEventsToIgnore++;
-                daap_host_play_song(PLAYSOURCE_RANDOM, prevhost, song->id);
+                daap_host_play_song(PLAYSOURCE_HOST, prevhost, song->id);
             }
             break;
         case PLAYSOURCE_PARTY:
@@ -612,7 +593,8 @@ int get_songindex_by_id(daap_host *host, int song_id)
 /******************* daap music playing *****************/
 void daap_host_stop_song(daap_host *host) {
 #ifdef PLAYBOOK
-	DAAP_ClientHost_MMRStop(playing_song.host->libopendaap_host, ctxt);
+	if (playing_song.host != NULL)
+		DAAP_ClientHost_MMRStop(playing_song.host->libopendaap_host, ctxt);
 #else
 	//DAAP_ClientHost_AsyncStop(playing_song.host->libopendaap_host);
 #endif
@@ -635,9 +617,9 @@ bool daap_host_get_paused(daap_host* host) {
 	return host->paused;
 }
 
-void daap_host_resume_song(daap_host *host, const char* position) {
+void daap_host_resume_song(daap_host *host) {
 #ifdef PLAYBOOK
-	DAAP_ClientHost_MMRResume(playing_song.host->libopendaap_host, ctxt, position);
+	DAAP_ClientHost_MMRResume(playing_song.host->libopendaap_host, ctxt);
 #else
 	//DAAP_ClientHost_AsyncStop(playing_song.host->libopendaap_host);
 #endif
@@ -646,7 +628,7 @@ void daap_host_resume_song(daap_host *host, const char* position) {
 	playing_song.host = host;
 }
 
-void daap_host_set_position(daap_host* host, char* position) {
+void daap_host_set_position(daap_host* host, const char* position) {
 
 	memcpy(host->position, position, strlen(position) + 1);
 }
@@ -719,7 +701,7 @@ void daap_host_play_song(enum playsource playsource, daap_host *host, int song_i
     host->paused = false;
 
     daap_host_set_selected_song(host, &host->songs[songindex]);
-
+    itoa(host->selected_song->songtime, host->playing_length, 10);
 #ifdef PLAYBOOK
     if (DAAP_ClientHost_MMRGetAudioFile(host->libopendaap_host,
                                           host->databases[0].id, song_id,
@@ -849,8 +831,10 @@ void initial_connect(daap_host *host)
         //schedule_lists_draw(1, 0, 0, 0);
 
     host->position = calloc(10, sizeof(char));
+    host->playing_length = calloc(10, sizeof(char));
     host->playing = false;
     host->paused = false;
+    host->random = false;
     //RPJ
     visibleHost = host;
 
@@ -888,6 +872,9 @@ static void disconnect_host(daap_host *host)
         //schedule_lists_draw(1, 0, 0, 0);
 }
 
+bool daap_host_get_random(daap_host* host) {
+	return host->random;
+}
 
 /**** daap utility functions used by the rest of tb *****/
 
@@ -1260,11 +1247,41 @@ void daap_host_set_selected_artist(daap_host *host, artist *artist)
         if (!cur) host->selected_album = NULL;
     }
 
+    /*
+    UChar c = NULL;
+    int32_t i = 0;
+    size_t length = 12 + strlen(host->selected_artist->artist) + 1;
+    UChar *conv = (UChar*)calloc(length, sizeof(UChar));
+    uint8_t* str = (uint8_t*)host->selected_artist->artist;
+    int32_t count = 0;
+    int x = 12;
+    conv[0] = 'N';
+    conv[1] = 'e';
+    conv[2] = 'w';
+    conv[3] = ' ';
+    conv[4] = 'a';
+    conv[5] = 'r';
+    conv[6] = 't';
+    conv[7] = 'i';
+    conv[8] = 's';
+    conv[9] = 't';
+    conv[10]= ':';
+    conv[11]= ' ';
+    while (count < length) {
+    	U8_NEXT(str, i, length, c);
+    	count += i;
+    	conv[x] = c;
+    	x++;
+    }
+    conv[x] = '\0';
+	debugMsg(conv, 7);
+    */
     char* tmp = calloc(12 + strlen(host->selected_artist->artist) + 1, sizeof(char));
     sprintf(tmp, "New artist: %s", host->selected_artist->artist);
     debugMsg(tmp, 7);
     //free(tmp);
     //schedule_lists_draw(0, 0, 1, 1);
+
 }
 
 void daap_host_set_selected_album(daap_host *host, album *album)
@@ -1280,12 +1297,29 @@ void daap_host_set_selected_album(daap_host *host, album *album)
 }
 
 void daap_host_toggle_playsource_random(daap_host* host) {
-	if (playing_song.playsource == PLAYSOURCE_RANDOM) {
-		playing_song.playsource = PLAYSOURCE_HOST;
-	} else if (playing_song.playsource == PLAYSOURCE_HOST) {
-		playing_song.playsource = PLAYSOURCE_RANDOM;
-	}
+	host->random = !host->random;
 	toggleShuffle();
+}
+
+char* daap_host_get_song_length(daap_host* host) {
+	return host->playing_length;
+}
+
+void daap_host_seek_percent(daap_host* host, int pos) {
+	//Get the length
+	char* length = daap_host_get_song_length(host);
+	int int_length = atoi(length);
+	//Work out position
+	int seek_to = (int_length * pos) / 100;
+	//convert to char*
+	char buffer[10];
+	itoa(seek_to, buffer, 10);
+
+#ifdef PLAYBOOK
+	DAAP_ClientHost_MMRSeek(host->libopendaap_host, ctxt, buffer);
+#else
+	//DAAP_ClientHost_AsyncStop(playing_song.host->libopendaap_host);
+#endif
 }
 
 void daap_host_jump_to_letter(daap_host* host, char* c) {
@@ -1479,10 +1513,7 @@ char* get_current_song_length(daap_host* host) {
 		host = visibleHost;
 	}
 	if (playing_song.song_id && host && host->songs) {
-		int length = host->songs[playing_song.song_id].songtime;
-		char* buf = calloc(100, sizeof(char));
-		itoa(length, buf, 10);
-		return buf;
+		return host->playing_length;
 	}
 	return "-1";
 }

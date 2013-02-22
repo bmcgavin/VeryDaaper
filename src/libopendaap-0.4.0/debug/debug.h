@@ -26,6 +26,7 @@
 #define DEBUG_H
 
 #include "../portability.h"
+#include <unicode/utf8.h>
 
 #ifdef __cplusplus
 extern "C" {

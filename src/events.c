@@ -19,13 +19,11 @@
 #include "daapfunc.h"
 #include "libopendaap-0.4.0/debug/debug.h"
 
-bool shutdown = false;
-bool menu_show_animation = false;
-bool menu_hide_animation = false;
-
 bool connected = false;
 
 int mm_stopEventsToIgnore = 0;
+int exit_application = 0;
+bool show_menu = false;
 
 #define DEFAULT_DEBUG_CHANNEL "EVENTS"
 
@@ -39,6 +37,7 @@ void handleClick(int x, int y) {
 		if (x > 900) {
 			//Controls!
 			DAAP_ClientHost_DatabaseItem* prev_song = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem));
+			DAAP_ClientHost_DatabaseItem* next_song_item = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem));
 			if (y <= 50) {
 				//Play
 				if (daap_host_get_playing(host) || daap_host_get_paused(host)) {
@@ -53,7 +52,7 @@ void handleClick(int x, int y) {
 					daap_host_pause_song(host);
 				} else {
 					if (daap_host_get_paused(host)) {
-						daap_host_resume_song(host, daap_host_get_position(host));
+						daap_host_resume_song(host);
 					} else {
 						daap_host_play_song(PLAYSOURCE_HOST, host, daap_host_get_selected_song(host)->id);
 					}
@@ -75,158 +74,10 @@ void handleClick(int x, int y) {
 					if (daap_host_get_selected_album(host) != daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host))) {
 						daap_host_set_selected_album(host, daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host)));
 					}
-					/*
-					bool was_playing = daap_host_get_playing(host);
-					if (was_playing || daap_host_get_paused(host)) {
-						daap_host_stop_song(host);
-					}
-					if (was_playing) {
-						daap_host_play_song(PLAYSOURCE_HOST, host, prev_song->id);
-					} else {
-					*/
-					//Not playing, but update display
-						daap_host_set_selected_song(host, prev_song);
-					//}
+					daap_host_set_selected_song(host, prev_song);
 				}
 			} else if (y <= 250) {
-				//Prev album
-				album* prev_album = get_new_album();
-				prev_album = daap_host_get_prev_album(host, daap_host_get_selected_album(host));
-				int prev_song_id = -1;
-				if (prev_album) {
-					prev_song_id = daap_host_enum_artist_album_songs(host, prev_song,
-							-1, daap_host_get_selected_artist(host),
-							prev_album);
-				} else {
-					artist* prev_artist = daap_host_get_prev_artist(host, daap_host_get_selected_artist(host));
-					if (prev_artist) {
-						prev_song_id = daap_host_enum_artist_album_songs(host, prev_song,
-							-1, prev_artist,
-							daap_host_get_first_album_for_artist(host, prev_artist));
-					} else {
-						//Uh...
-						TRACE("");
-					}
-				}
-				if (prev_song_id != -1) {
-					if (daap_host_get_selected_artist(host) != daap_host_get_artist_for_song(host, prev_song)) {
-						daap_host_set_selected_artist(host, daap_host_get_artist_for_song(host, prev_song));
-					}
-					if (daap_host_get_selected_album(host) != daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host))) {
-						daap_host_set_selected_album(host, daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host)));
-					}
-					/*
-					bool was_playing = daap_host_get_playing(host);
-					if (was_playing || daap_host_get_paused(host)) {
-						daap_host_stop_song(host);
-					}
-					if (was_playing) {
-						daap_host_play_song(PLAYSOURCE_HOST, host, prev_song->id);
-					} else {
-						//Not playing, but update display
-					*/
-						daap_host_set_selected_song(host, prev_song);
-					//}
-				}
-			} else if (y <= 300) {
-				//Prev artist
-				artist* prev_artist = daap_host_get_prev_artist(host, daap_host_get_selected_artist(host));
-				int prev_song_id = -1;
-				if (prev_artist) {
-					prev_song_id = daap_host_enum_artist_album_songs(host, prev_song,
-						-1, prev_artist,
-						daap_host_get_first_album_for_artist(host, prev_artist));
-				} else {
-					//'Last' artist
-					prev_artist = daap_host_get_first_artist(host);
-					prev_song_id = daap_host_enum_artist_album_songs(host, prev_song,
-						-1, prev_artist,
-						daap_host_get_first_album_for_artist(host, prev_artist));
-				}
-				if (prev_song_id != -1) {
-					if (daap_host_get_selected_artist(host) != daap_host_get_artist_for_song(host, prev_song)) {
-						daap_host_set_selected_artist(host, daap_host_get_artist_for_song(host, prev_song));
-					}
-					if (daap_host_get_selected_album(host) != daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host))) {
-						daap_host_set_selected_album(host, daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host)));
-					}
-					/*
-					bool was_playing = daap_host_get_playing(host);
-					if (was_playing || daap_host_get_paused(host)) {
-						daap_host_stop_song(host);
-					}
-					if (was_playing) {
-						daap_host_play_song(PLAYSOURCE_HOST, host, prev_song->id);
-					} else {
-					*/
-						//Not playing, but update display
-						daap_host_set_selected_song(host, prev_song);
-					//}
-				}
-			} else if (y <= 350) {
-				//Random
-				daap_host_toggle_playsource_random(host);
-			} else if (y <= 400) {
-				//M
-				daap_host_jump_to_letter(host, "m");
-			}
-			return;
-		} else {
-			DAAP_ClientHost_DatabaseItem* next_song_item = (DAAP_ClientHost_DatabaseItem*)malloc(sizeof(DAAP_ClientHost_DatabaseItem));
-			if (y < 200) {
-				//Artist
-				//artist* next_artist = get_new_artist();
-				artist* next_artist = daap_host_get_next_artist(host, daap_host_get_selected_artist(host));
-				if (next_artist == NULL) {
-					//Uh...
-					return;
-				}
-				if (next_artist != daap_host_get_selected_artist(host)) {
-					daap_host_set_selected_artist(host,next_artist);
-					daap_host_set_selected_album(host,daap_host_get_next_album(host, daap_host_get_selected_album(host)));
-					//Get first song_id for that artist
-					daap_host_enum_artist_album_songs(host, next_song_item,
-							get_songindex_by_id(host, daap_host_get_selected_song(host)->id), next_artist,
-							daap_host_get_selected_album(host));
-				}
-				//Now set in daap_host_playing_song();
-				//daap_host_set_selected_song(host, next_song_item);
-				/*
-				stop_type = STOP_NEWSONG;
-				daap_host_play_song(PLAYSOURCE_HOST, host, next_song_item->id);
-				*/
-			} else if (y < 400) {
-				//Album
-				album* next_album = get_new_album();
-				//next_album = daap_host_enum_album(daap_host_get_selected_artist(host), daap_host_get_selected_album(host));
-				next_album = daap_host_get_next_album(host, daap_host_get_selected_album(host));
-				if (next_album == NULL) {
-					//Next artist
-					artist* next_artist = daap_host_get_next_artist(host, daap_host_get_selected_artist(host));
-					if (next_artist == NULL) {
-						//Uh
-						return;
-					}
-					daap_host_set_selected_artist(host,next_artist);
-					daap_host_set_selected_album(host,daap_host_get_next_album(host, daap_host_get_selected_album(host)));
-					//Get first song_id for that artist
-					daap_host_enum_artist_album_songs(host, next_song_item,
-							-1, next_artist,
-							daap_host_get_selected_album(host));
-				} else if (next_album != daap_host_get_selected_album(host)) {
-					daap_host_set_selected_album(host,next_album);
-					//Get first song_id for that album
-					daap_host_enum_artist_album_songs(host, next_song_item,
-							-1, daap_host_get_selected_artist(host),
-							next_album);
-				}
-				//Now set in daap_host_playing_song();
-				//daap_host_set_selected_song(host, next_song_item);
-				/*
-				stop_type = STOP_NEWSONG;
-				daap_host_play_song(PLAYSOURCE_HOST, host, next_song_item->id);
-				*/
-			} else {
+				//Next song
 				//Do we have a track?
 				int next_song_id = daap_host_enum_artist_album_songs(host, next_song_item,
 						get_songindex_by_id(host, daap_host_get_selected_song(host)->id), daap_host_get_selected_artist(host),
@@ -258,28 +109,119 @@ void handleClick(int x, int y) {
 								next_album);
 					}
 				}
-				//Now set in daap_host_playing_song();
-				//daap_host_set_selected_song(host, next_song_item);
-				//stop_type = STOP_NEWSONG;
-				//daap_host_play_song(PLAYSOURCE_HOST, host, next_song_item->id);
-				//Track, do nothing
-				//daap_audiocb_finished();
-			}
-			//Play next song from selected playlist
-			//This triggers two stop events, so ignore another one.
-			//mm_stopEventsToIgnore++;
-			/*
-			bool was_playing = daap_host_get_playing(host);
-			if (was_playing || daap_host_get_paused(host)) {
-				daap_host_stop_song(host);
-			}
-			if (was_playing) {
-				daap_host_play_song(PLAYSOURCE_HOST, host, next_song_item->id);
-			} else {
-			*/
-				//Not playing, but update display
 				daap_host_set_selected_song(host, next_song_item);
-			//}
+			} else if (y <= 300) {
+				//Prev album
+				album* prev_album = get_new_album();
+				prev_album = daap_host_get_prev_album(host, daap_host_get_selected_album(host));
+				int prev_song_id = -1;
+				if (prev_album) {
+					prev_song_id = daap_host_enum_artist_album_songs(host, prev_song,
+							-1, daap_host_get_selected_artist(host),
+							prev_album);
+				} else {
+					artist* prev_artist = daap_host_get_prev_artist(host, daap_host_get_selected_artist(host));
+					if (prev_artist) {
+						prev_song_id = daap_host_enum_artist_album_songs(host, prev_song,
+							-1, prev_artist,
+							daap_host_get_first_album_for_artist(host, prev_artist));
+					} else {
+						//Uh...
+						TRACE("");
+					}
+				}
+				if (prev_song_id != -1) {
+					if (daap_host_get_selected_artist(host) != daap_host_get_artist_for_song(host, prev_song)) {
+						daap_host_set_selected_artist(host, daap_host_get_artist_for_song(host, prev_song));
+					}
+					if (daap_host_get_selected_album(host) != daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host))) {
+						daap_host_set_selected_album(host, daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host)));
+					}
+					daap_host_set_selected_song(host, prev_song);
+				}
+			} else if (y <= 350) {
+				//Next album
+				album* next_album = get_new_album();
+				next_album = daap_host_get_next_album(host, daap_host_get_selected_album(host));
+				if (next_album == NULL) {
+					//Next artist
+					artist* next_artist = daap_host_get_next_artist(host, daap_host_get_selected_artist(host));
+					if (next_artist == NULL) {
+						//Uh
+						return;
+					}
+					daap_host_set_selected_artist(host,next_artist);
+					daap_host_set_selected_album(host,daap_host_get_next_album(host, daap_host_get_selected_album(host)));
+					//Get first song_id for that artist
+					daap_host_enum_artist_album_songs(host, next_song_item,
+							-1, next_artist,
+							daap_host_get_selected_album(host));
+					daap_host_set_selected_song(host, next_song_item);
+				} else if (next_album != daap_host_get_selected_album(host)) {
+					daap_host_set_selected_album(host,next_album);
+					//Get first song_id for that album
+					daap_host_enum_artist_album_songs(host, next_song_item,
+							-1, daap_host_get_selected_artist(host),
+							next_album);
+					daap_host_set_selected_song(host, next_song_item);
+				}
+			} else if (y <= 400) {
+				//Prev artist
+				artist* prev_artist = daap_host_get_prev_artist(host, daap_host_get_selected_artist(host));
+				int prev_song_id = -1;
+				if (prev_artist) {
+					prev_song_id = daap_host_enum_artist_album_songs(host, prev_song,
+						-1, prev_artist,
+						daap_host_get_first_album_for_artist(host, prev_artist));
+				} else {
+					//'Last' artist
+					prev_artist = daap_host_get_first_artist(host);
+					prev_song_id = daap_host_enum_artist_album_songs(host, prev_song,
+						-1, prev_artist,
+						daap_host_get_first_album_for_artist(host, prev_artist));
+				}
+				if (prev_song_id != -1) {
+					if (daap_host_get_selected_artist(host) != daap_host_get_artist_for_song(host, prev_song)) {
+						daap_host_set_selected_artist(host, daap_host_get_artist_for_song(host, prev_song));
+					}
+					if (daap_host_get_selected_album(host) != daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host))) {
+						daap_host_set_selected_album(host, daap_host_get_album_for_song_and_artist(host, prev_song, daap_host_get_selected_artist(host)));
+					}
+					//Not playing, but update display
+					daap_host_set_selected_song(host, prev_song);
+				}
+			} else if (y <= 450) {
+				//Next artist
+				artist* next_artist = daap_host_get_next_artist(host, daap_host_get_selected_artist(host));
+				if (next_artist == NULL) {
+					//Uh...
+					return;
+				}
+				if (next_artist != daap_host_get_selected_artist(host)) {
+					daap_host_set_selected_artist(host,next_artist);
+					daap_host_set_selected_album(host,daap_host_get_next_album(host, daap_host_get_selected_album(host)));
+					//Get first song_id for that artist
+					daap_host_enum_artist_album_songs(host, next_song_item,
+							get_songindex_by_id(host, daap_host_get_selected_song(host)->id), next_artist,
+							daap_host_get_selected_album(host));
+					daap_host_set_selected_song(host, next_song_item);
+				}
+			} else if (y <= 500) {
+				//Random
+				daap_host_toggle_playsource_random(host);
+			} else if (y <= 550) {
+				//M
+				daap_host_jump_to_letter(host, "m");
+			}
+			return;
+		} else if (y <= 550) {
+			if (x <= 200) {
+				daap_host_seek_percent(host, 0);
+			} else if (x <= 400) {
+				daap_host_seek_percent(host, 50);
+			} else if (x <= 600) {
+				daap_host_seek_percent(host, 99);
+			}
 		}
 	} else {
 		initial_connect(host);
@@ -326,7 +268,6 @@ void handleScreenEvent(bps_event_t *event) {
 }
 
 
-
 void handleMMRendererEvent(bps_event_t* event) {
 	daap_host* host = getVisibleHost();
 	switch (bps_event_get_code(event)) {
@@ -366,7 +307,6 @@ int resize(bps_event_t *event) {
 	return 0;
 }
 
-
 void handleNavigatorEvent(bps_event_t *event) {
     switch (bps_event_get_code(event)) {
     case NAVIGATOR_ORIENTATION_CHECK:
@@ -375,15 +315,14 @@ void handleNavigatorEvent(bps_event_t *event) {
         break;
     case NAVIGATOR_ORIENTATION:
         if (EXIT_FAILURE == resize(event)) {
-            shutdown = true;
+        	exit_application = 1;
         }
         break;
     case NAVIGATOR_SWIPE_DOWN:
-        menu_show_animation = true;
-        menu_hide_animation = false;
+    	show_menu = !show_menu;
         break;
     case NAVIGATOR_EXIT:
-        shutdown = true;
+        exit_application = 1;
         break;
     case NAVIGATOR_WINDOW_INACTIVE:
         //Wait for NAVIGATOR_WINDOW_ACTIVE event
@@ -396,7 +335,7 @@ void handleNavigatorEvent(bps_event_t *event) {
             if (event && (bps_event_get_domain(event) == navigator_get_domain())) {
                 int code = bps_event_get_code(event);
                 if (code == NAVIGATOR_EXIT) {
-                    shutdown = true;
+                	exit_application = 1;
                     break;
                 } else if (code == NAVIGATOR_WINDOW_ACTIVE) {
                     break;
